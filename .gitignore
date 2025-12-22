@@ -33,6 +33,4 @@ wheels/
 
 
 
-# Database
-chroma.sqlite3
-chromadb/
+
