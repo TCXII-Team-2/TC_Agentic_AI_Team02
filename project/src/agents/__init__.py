@@ -1,3 +1,3 @@
-from .agent_analyzer import QueryAnalyzer
+from .agent_analyzer import QueryAnalyzer, Ticket
 
-__all__ = ['QueryAnalyzer']
+__all__ = ['QueryAnalyzer', 'Ticket']

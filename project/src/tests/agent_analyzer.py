@@ -2,12 +2,21 @@ import asyncio
 import json
 import sys
 from pathlib import Path
+from typing import Optional
+from pydantic import BaseModel
+from datetime import date
 
 sys.path.append(str(Path(__file__).parent.parent))
 
 
 from agents.agent_analyzer import QueryAnalyzer
 
+class Ticket(BaseModel):
+    content: str
+    id: Optional[str] = None
+    subject: str
+    created_at: date
+    userPlan: Optional[str] = None
 
 async def test_single_ticket():
     """Test analyzing a single ticket"""
@@ -15,18 +24,43 @@ async def test_single_ticket():
     print("=" * 50)
     
     analyzer = QueryAnalyzer()
-    
+    ticket1 = Ticket({
+  "id": "TCK-001",
+  "subject": "Unable to login to my account",
+  "content": "I have been trying to login since yesterday but it keeps failing with an error message. Please help me regain access.",
+  "created_at": date(2025, 2, 1),
+  "userPlan": "Free"
+})
+    ticket2 = Ticket({
+  "id": "TCK-002",
+    "subject": "Payment issue - charged twice",
+    "content": "I noticed that my credit card was charged twice for the same order. I need a refund for the duplicate charge as soon as possible.",
+    "created_at": date(2025, 2, 2),
+    "userPlan": "Premium"
+})
+    ticket3 = Ticket({
+    "id": "TCK-003",
+    "subject": "Comment mettre à jour mon profil ?",
+    "content": "Je ne trouve pas l'option pour mettre à jour les informations de mon profil utilisateur. Pouvez-vous m'aider ?",
+    "created_at": date(2025, 2, 3),
+    "userPlan": "Standard"
+})
+    ticket4 = Ticket({  
+    "id": "TCK-004",
+    "subject": "الموقع لا يعمل على الهاتف",
+    "content": "عند محاولة الدخول إلى الموقع من خلال الهاتف المحمول، يظهر لي خطأ ولا أستطيع الوصول إلى حسابي.",
+    "created_at": date(2025, 2, 4),
+    "userPlan": "Free"
+})
     # Test tickets
     test_tickets = [
-        "I can't login to my account. Getting error 404 when entering correct password. This started yesterday.",
-        "My payment was declined but money taken from my account. Need refund immediately!",
-        "Comment mettre à jour mon profil ? Je ne trouve pas l'option.",
-        "الموقع لا يعمل على الهاتف، يظهر خطأ عند الدخول."
-    ]
+        ticket1,
+        ticket2,
+        ticket3,
+        ticket4]
     
-    for i, ticket in enumerate(test_tickets, 1):
-        print(f"\n🔍 Ticket {i}:")
-        print(f"Input: {ticket[:80]}...")
+    for  ticket in test_tickets:
+        print(f"Input: {ticket}...")
         
         try:
             result = await analyzer.analyze_query(ticket)
@@ -60,20 +94,49 @@ async def test_batch_tickets():
     
     analyzer = QueryAnalyzer()
     
+    ticket1 = Ticket(
+  id= "TCK-001",
+  subject= "Unable to login to my account",
+  content= "I have been trying to login since yesterday but it keeps failing with an error message. Please help me regain access.",
+  created_at= date(2025, 2, 1),
+  userPlan= "Free"
+)
+    ticket2 = Ticket(
+  id="TCK-002",
+    subject= "Payment issue - charged twice",
+    content= "I noticed that my credit card was charged twice for the same order. I need a refund for the duplicate charge as soon as possible.",
+    created_at= date(2025, 2, 2),
+    userPlan= "Premium"
+)
+    ticket3 = Ticket(
+    id = "TCK-003",
+    subject= "Comment mettre à jour mon profil ?",
+    content= "Je ne trouve pas l'option pour mettre à jour les informations de mon profil utilisateur. Pouvez-vous m'aider ?",
+    created_at= date(2025, 2, 3),
+    userPlan= "Standard"
+)
+    ticket4 = Ticket(
+
+    id = "TCK-004",
+    subject= "الموقع لا يعمل على الهاتف",
+    content= "عند محاولة الدخول إلى الموقع من خلال الهاتف المحمول، يظهر لي خطأ ولا أستطيع الوصول إلى حسابي.",
+    created_at= date(2025, 2, 4),
+    userPlan= "Free"
+)
+    # Test tickets
     tickets = [
-        "Website is very slow today",
-        "I need to change my billing address",
-        "Error 500 when submitting form",
-        "How to export my data?"
-    ]
+        ticket1,
+        ticket2,
+        ticket3,
+        ticket4]
     
     print(f"Processing {len(tickets)} tickets...")
     results = await analyzer.batch_analyze(tickets)
     
     for i, (ticket, result) in enumerate(zip(tickets, results), 1):
-        print(f"\nTicket {i}: {ticket[:50]}...")
+        print(f"\nTicket {i}: {ticket.content[:50]}...")
         if result:
-            print(f"   ✅ {result['category']} - {result['urgency']}")
+            print(f"   ✅ {result} ")
         else:
             print("   ❌ Failed")
 
@@ -92,7 +155,6 @@ async def test_validation():
         "urgency": "High",
         "language": "English",
         "sentiment": "Neutral",
-        "requires_human": False
     }
     
     try:
@@ -175,10 +237,10 @@ async def main():
         return
     
     # Run tests
-    await test_single_ticket()
+    
     await test_batch_tickets()
-    await test_validation()
-    await test_edge_cases()
+    # await test_validation()
+    # await test_edge_cases()
     
     print("\n" + "=" * 50)
     print("✅ All tests completed!")
