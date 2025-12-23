@@ -16,7 +16,6 @@ import os
 import json
 from typing import Dict, Any, Optional
 import logging
-from models.agent_analyzer import gemini_model
 from pydantic_ai import Agent
 from pydantic_ai.models.mistral import MistralModel
 from pathlib import Path
@@ -82,7 +81,7 @@ class QueryAnalyzer:
             response = await self.agent.run(querry)
 
             analysis_result = response.output.model_dump() 
-
+            
             # Validate the result structure
             self._validate_analysis(analysis_result)
             
@@ -127,7 +126,7 @@ class QueryAnalyzer:
             raise ValueError(f"Invalid urgency: {analysis['urgency']}. Must be one of {valid_urgency}")
         
         # Validate keywords (3-5)
-        if len(analysis["keywords"]) < 3 or len(analysis["keywords"]) > 5:
+        if len(analysis["keywords"]) < 5 or len(analysis["keywords"]) > 9:
             raise ValueError(f"Keywords must be 5-9 items, got {len(analysis['keywords'])}")
         
         return True

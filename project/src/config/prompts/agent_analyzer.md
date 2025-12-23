@@ -18,7 +18,7 @@
         - requires_human: True if ticket mentions "speak to agent", "human", "manager" or shows high frustration
          OUTPUT FORMAT (STRICT JSON):
         {
-            "summary": "Brief 2-3 sentence summary of the problem",
+            "summary": "Brief 2 to 3 sentence summary of the problem",
             "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5" , "keyword6", "keyword7", "keyword8", "keyword9"],
             "category": "Technical|Billing|Access|General|Refund|Onboarding|Other",
             "urgency": "Low|Medium|High|Critical",
