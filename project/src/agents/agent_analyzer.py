@@ -16,10 +16,10 @@ import os
 import json
 from typing import Dict, Any, Optional
 import logging
-from models.agent_analyzer import gemini_model
 from pydantic_ai import Agent
 from pydantic_ai.models.mistral import MistralModel
 from pathlib import Path
+from datetime import date
 
 
 
@@ -38,15 +38,21 @@ class AnalysisResult(BaseModel):
     urgency: str
     language: str
     sentiment: str
-    requires_human: bool
+
+class Ticket(BaseModel):
+    content: str
+    id: Optional[str] = None
+    subject: str
+    created_at: date
+    userPlan: Optional[str] = None
+    
 
 class QueryAnalyzer:
 
     def __init__(self):
         self.agent = Agent(
             name="query_analyzer",
-            model=mistral,
-            
+            model=mistral,    
             output_type=AnalysisResult,
             instructions=self._get_instructions()
         )
@@ -58,16 +64,28 @@ class QueryAnalyzer:
         return readme_text
     
 
-    async def analyze_query(self, ticket_text: str) -> Dict[str, Any]:
+    async def analyze_query(self, ticket: Ticket) -> Dict[str, Any]:
         try:
-    
-            self.logger.info(f"Analyzing ticket: {ticket_text[:100]}...")
+            querry = f"""Analyze the following support ticket and provide a structured JSON response with the requested fields in the instructions.
+            Make sure the JSON is properly formatted and adheres to the specified structure.
+            And Make you sure you follow exactly the instructions you were given.:
+            here is the ticket content:
+            Subject: {ticket.subject}
+            Content: {ticket.content}
+            Created At: {ticket.created_at}
+            User Plan: {ticket.userPlan if ticket.userPlan else 'N/A'}
+            """
+            self.logger.info(f"Analyzing ticket: {querry[:100]}...")
             
             # Use the agent to analyze the ticket
-            response = await self.agent.run(ticket_text)
+            response = await self.agent.run(querry)
 
             analysis_result = response.output.model_dump() 
-
+            
+            # Check keyword count before validation
+            if len(analysis_result.get("keywords", [])) < 5:
+                analysis_result["insufficient_keywords"] = True
+            
             # Validate the result structure
             self._validate_analysis(analysis_result)
             
@@ -90,7 +108,6 @@ class QueryAnalyzer:
             "urgency": str,
             "language": str,
             "sentiment": str,
-            "requires_human": bool
         }
 
 
@@ -112,9 +129,12 @@ class QueryAnalyzer:
         if analysis["urgency"] not in valid_urgency:
             raise ValueError(f"Invalid urgency: {analysis['urgency']}. Must be one of {valid_urgency}")
         
-        # Validate keywords (3-5)
-        if len(analysis["keywords"]) < 3 or len(analysis["keywords"]) > 5:
-            raise ValueError(f"Keywords must be 3-5 items, got {len(analysis['keywords'])}")
+        # Validate keywords (5-9)
+        if len(analysis["keywords"]) < 5 or len(analysis["keywords"]) > 9:
+            # If less than 5 keywords, mark as insufficient data
+            if len(analysis["keywords"]) < 5:
+                analysis["insufficient_keywords"] = True
+            raise ValueError(f"Keywords must be 5-9 items, got {len(analysis['keywords'])}")
         
         return True
     
@@ -145,7 +165,6 @@ class QueryAnalyzer:
         🌐 Language: {analysis['language']}
         😊 Sentiment: {analysis['sentiment']}
         
-        👤 Requires Human: {'✅ Yes' if analysis['requires_human'] else '❌ No'}
         
         {'=' * 40}
         """

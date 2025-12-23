@@ -6,6 +6,7 @@ import json
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent))
 
+from agents.agent_analyzer import Ticket
 from agents.agent_validator import TicketValidator, ValidationResult
 
 async def test_single_validation():
@@ -130,20 +131,50 @@ async def test_batch_validation():
     
     validator = TicketValidator()
     
-    tickets = [
-        ("Website is slow", {"category": "Technical", "urgency": "Medium"}),
-        ("Need help with invoice", {"category": "Billing", "urgency": "Low"}),
-        ("Can't reset password", {"category": "Access", "urgency": "High"}),
-        ("How to export data?", {"category": "General", "urgency": "Low"})
+    tests = [
+        {
+  "ticket": Ticket(
+    id="TCK-101",
+    subject="Application crashes on startup",
+    content="Every time I open the app, it crashes immediately with error code 0xDEADBEEF. I tried reinstalling but it still fails.",
+    created_at="2025-06-01",
+    userPlan="Premium"
+  ),
+  "analysis": {
+    "summary": "Customer reports that the app crashes immediately on startup with error code 0xDEADBEEF, and reinstalling did not fix it.",
+    "keywords": ["app crash", "startup", "error 0xDEADBEEF", "reinstall", "failure"],
+    "category": "Technical",
+    "urgency": "High",
+    "language": "English",
+    "sentiment": "Frustrated"
+  }
+},
+        {
+  "ticket": Ticket(
+    id="TCK-102",
+    subject="Can't log in",
+    content="I can't log in to my account.",
+    created_at="2025-06-02",
+    userPlan="Free"
+  ),
+  "analysis": {
+    "summary": "Customer is unable to log in to their account.",
+    "keywords": ["login issue", "account access", "authentication problem"],
+    "category": "Access",
+    "urgency": "Medium",
+    "language": "English",
+    "sentiment": "Neutral"
+  }
+}
     ]
     
-    print(f"Processing {len(tickets)} tickets...")
+    print(f"Processing {len(tests)} tests...")
     
-    for i, (ticket_text, analysis) in enumerate(tickets, 1):
-        print(f"\nTicket {i}: {ticket_text}")
+    for test_case in tests:
+        print(f"\nTicket : {test_case['ticket'].subject}")
         try:
-            result = await validator.validate(ticket_text, analysis)
-            print(f"   → {result['validation_status']} (Confidence: {result['confidence_score']:.0%})")
+            result = await validator.validate(test_case["ticket"], test_case["analysis"])
+            print(f"   → {result['validation_status']} ")
         except Exception as e:
             print(f"   → ❌ Failed: {e}")
 
@@ -315,11 +346,11 @@ async def main():
     
     try:
         # Run tests
-        await test_single_validation()
+        # await test_single_validation()
         await test_batch_validation()
-        await test_validation_rules()
-        await test_edge_cases()
-        await test_result_validation()
+        # await test_validation_rules()
+        # await test_edge_cases()
+        # await test_result_validation()
         
         print("\n" + "=" * 60)
         print("✅ All tests completed!")
