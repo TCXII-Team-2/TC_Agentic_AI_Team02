@@ -42,7 +42,11 @@
 4. RAG reliability is "unreliable" or "moderate" with high urgency
 5. Ticket requires human judgment (e.g., refunds, complaints, feature requests)
 6. Multiple escalation keywords detected: "speak to agent", "human", "manager", "escalate"
-
+### OUT OF SCOPE if:
+1. Question is completely unrelated to product/service (weather, cooking, poems, general trivia)
+2. Category is "Other" AND RAG found zero relevant results
+3. Keywords indicate non-support topic (recipes, poetry, unrelated domains)
+→ Set should_escalate: false, suggested_action: "out_of_scope"
 ### PROCEED WITH AUTO-RESPONSE if:
 1. Confidence score >= 0.6
 2. RAG reliability is "reliable"
@@ -64,7 +68,7 @@
     "escalation_reason": "null or specific reason for escalation",
     "recommendation": "Clear recommendation based on confidence level",
     "rag_reliability": "reliable|moderate|unreliable",
-    "suggested_action": "auto_respond|escalate|request_clarification"
+    "suggested_action": "auto_respond|escalate|request_clarification|out_of_scope"
 }
 
 # EXAMPLES:

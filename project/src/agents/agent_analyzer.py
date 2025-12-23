@@ -82,6 +82,10 @@ class QueryAnalyzer:
 
             analysis_result = response.output.model_dump() 
             
+            # Check keyword count before validation
+            if len(analysis_result.get("keywords", [])) < 5:
+                analysis_result["insufficient_keywords"] = True
+            
             # Validate the result structure
             self._validate_analysis(analysis_result)
             
@@ -125,8 +129,11 @@ class QueryAnalyzer:
         if analysis["urgency"] not in valid_urgency:
             raise ValueError(f"Invalid urgency: {analysis['urgency']}. Must be one of {valid_urgency}")
         
-        # Validate keywords (3-5)
+        # Validate keywords (5-9)
         if len(analysis["keywords"]) < 5 or len(analysis["keywords"]) > 9:
+            # If less than 5 keywords, mark as insufficient data
+            if len(analysis["keywords"]) < 5:
+                analysis["insufficient_keywords"] = True
             raise ValueError(f"Keywords must be 5-9 items, got {len(analysis['keywords'])}")
         
         return True

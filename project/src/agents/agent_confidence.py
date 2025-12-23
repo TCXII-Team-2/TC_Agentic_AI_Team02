@@ -150,7 +150,7 @@ class ConfidenceEvaluator:
             raise ValueError(f"Invalid RAG reliability: {result['rag_reliability']}")
         
         # Validate suggested_action
-        valid_actions = ["auto_respond", "escalate", "request_clarification"]
+        valid_actions = ["auto_respond", "escalate", "request_clarification", "out_of_scope"]
         if result["suggested_action"] not in valid_actions:
             raise ValueError(f"Invalid suggested action: {result['suggested_action']}")
         
@@ -158,9 +158,13 @@ class ConfidenceEvaluator:
 
     def _determine_final_action(self, confidence_result: Dict[str, Any]) -> str:
         """Determine the final action based on confidence evaluation"""
-        if confidence_result["should_escalate"]:
+        suggested = confidence_result.get("suggested_action", "")
+        
+        if suggested == "out_of_scope":
+            return "OUT_OF_SCOPE"
+        elif confidence_result.get("should_escalate"):
             return "ESCALATE_TO_HUMAN"
-        elif confidence_result["suggested_action"] == "request_clarification":
+        elif suggested == "request_clarification":
             return "REQUEST_CLARIFICATION"
         else:
             return "PROCEED_WITH_AUTO_RESPONSE"

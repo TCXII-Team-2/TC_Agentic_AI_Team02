@@ -51,6 +51,19 @@
 - **Length**: 100-200 words
 - **Must Include**: Clear questions, How to respond
 
+## 4. OUT OF SCOPE (Used when question is not support-related)
+- **Goal**: Politely inform customer their question is outside support scope
+- **Structure**:
+  - Thank you for contacting us
+  - Acknowledge we received their message
+  - Politely explain this is outside our support scope
+  - Suggest they rephrase if it's support-related
+  - Provide general support contact for other questions
+
+- **Tone**: Professional and polite
+- **Length**: 50-100 words
+- **Must Include**: Clear boundary, Alternative path
+
 # TONE GUIDELINES:
 
 ## Professional Tone (Use for)
@@ -118,7 +131,7 @@
     "includes_next_steps": true|false,
     "includes_contact_info": true|false,
     "language": "English|French|Arabic|Other",
-    "response_type": "solution|escalation_notice|clarification_request"
+    "response_type": "solution|escalation_notice|clarification_request|out_of_scope"
 }
 
 # EXAMPLES:

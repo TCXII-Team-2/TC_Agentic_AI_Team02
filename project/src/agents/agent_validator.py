@@ -27,6 +27,7 @@ class Ticket(BaseModel):
 class ValidationResult(str, Enum):
     VALID = "valid"
     NEEDS_MORE_INFO = "needs_more_info"
+    OUT_OF_SCOPE = "out_of_scope"
 
 
 class ValidationResponse(BaseModel):
@@ -94,6 +95,13 @@ class TicketValidator:
             
             # Get the structured data from response
             validation_result = response.output.model_dump()
+            
+            # Check if analyzer flagged insufficient keywords
+            if analysis_result and analysis_result.get("insufficient_keywords"):
+                validation_result["is_valid"] = False
+                validation_result["validation_status"] = ValidationResult.NEEDS_MORE_INFO.value
+                validation_result["missing_details"] = ["More specific information needed - query is too vague"]
+                validation_result["message_to_client"] = "Thank you for reaching out. Your query needs more details to provide an accurate response. Please provide more specific information about your issue."
             
             # Add metadata
             validation_result["validated_at"] = datetime.now().isoformat()

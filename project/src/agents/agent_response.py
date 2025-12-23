@@ -114,16 +114,16 @@ class ResponseGenerator:
         Generate a formal, professional client response based on the following information:
         
         TICKET ANALYSIS:
-        {json.dumps(context['ticket_analysis'], ensure_ascii=False, indent=2)}
+        {json.dumps(context['ticket_analysis'], ensure_ascii=False, indent=2, default=str)}
         
         RAG KNOWLEDGE BASE RESULTS:
-        {json.dumps(context['rag_results'], ensure_ascii=False, indent=2)}
+        {json.dumps(context['rag_results'], ensure_ascii=False, indent=2, default=str)}
         
         CONFIDENCE EVALUATION:
-        {json.dumps(context['confidence_evaluation'], ensure_ascii=False, indent=2)}
+        {json.dumps(context['confidence_evaluation'], ensure_ascii=False, indent=2, default=str)}
         
         ORIGINAL TICKET:
-        {json.dumps(context['original_ticket'], ensure_ascii=False, indent=2)}
+        {json.dumps(context['original_ticket'], ensure_ascii=False, indent=2, default=str)}
         
         RESPONSE TYPE: {response_type.upper()}
         
@@ -163,7 +163,7 @@ class ResponseGenerator:
                 raise ValueError(f"Field '{field}' must be boolean")
         
         # Validate response type
-        valid_types = ["solution", "escalation_notice", "clarification_request"]
+        valid_types = ["solution", "escalation_notice", "clarification_request", "out_of_scope"]
         if result["response_type"] not in valid_types:
             raise ValueError(f"Invalid response type: {result['response_type']}")
         
@@ -234,6 +234,11 @@ class ResponseGenerator:
             default_text = (
                 "Thank you for reaching out. To better assist you, could you please provide additional details about your issue? "
                 "This will help us offer you a more accurate solution."
+            )
+        elif response_type == "out_of_scope":
+            default_text = (
+                "Thank you for contacting us. Your question appears to be outside the scope of our support services. "
+                "If you have questions about our product or service, please feel free to rephrase your question."
             )
         else:
             default_text = (

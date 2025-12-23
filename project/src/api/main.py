@@ -45,6 +45,26 @@ class WorkflowResponse(BaseModel):
     response: Dict[str, Any]
 
 
+# ---- Jury bulk Q&A schema ----
+class QuestionItem(BaseModel):
+    id: str
+    query: str
+
+
+class QuestionsIn(BaseModel):
+    Questions: List[QuestionItem]
+
+
+class AnswerItem(BaseModel):
+    id: str
+    answer: str
+
+
+class AnswersOut(BaseModel):
+    Team: str
+    Answers: List[AnswerItem]
+
+
 @app.on_event("startup")
 async def startup_event():
     # Instantiate long-lived agent objects once
@@ -55,6 +75,7 @@ async def startup_event():
     app.state.retriever = RAGRetriever(db_path=chroma_path)
     app.state.confidence = ConfidenceEvaluator()
     app.state.responder = ResponseGenerator()
+    app.state.team_name = os.getenv("TEAM_NAME", "TEAM 02")
 
 
 def _dedupe_lines(text: str) -> str:
@@ -95,6 +116,23 @@ async def run_workflow(ticket: TicketIn) -> JSONResponse:
         # 2) Validate
         validation = await validator.validate(a_ticket, analysis)
         if not validation.get("is_valid"):
+            # Check if out-of-scope
+            if validation.get("validation_status") == "out_of_scope":
+                msg = "Thank you for contacting us. Your question appears to be outside the scope of our support services. If you have questions about our product or service, please feel free to rephrase your question."
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "analysis": analysis,
+                        "validation": validation,
+                        "rag": {},
+                        "confidence": {},
+                        "response": {
+                            "response_text": msg,
+                            "response_type": "out_of_scope",
+                            "language": analysis.get("language", "English"),
+                        },
+                    },
+                )
             # Short-circuit with a clarification response
             msg = validation.get("message_to_client") or "Please provide more details."
             validation["message_to_client"] = _dedupe_lines(msg)
@@ -124,7 +162,9 @@ async def run_workflow(ticket: TicketIn) -> JSONResponse:
         )
 
         # 5) Decide response type and generate response
-        if confidence.get("should_escalate"):
+        if confidence.get("suggested_action") == "out_of_scope":
+            rtype = "out_of_scope"
+        elif confidence.get("should_escalate"):
             rtype = "escalation_notice"
         elif confidence.get("suggested_action") == "request_clarification":
             rtype = "clarification_request"
@@ -152,6 +192,94 @@ async def run_workflow(ticket: TicketIn) -> JSONResponse:
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Workflow failed: {e}")
+
+
+@app.post("/workflow/answer-questions", response_model=AnswersOut)
+async def answer_questions(payload: QuestionsIn) -> JSONResponse:
+    """
+    Accepts bulk questions in the specified jury JSON format and returns
+    answers in the required output format.
+    """
+    try:
+        analyzer: QueryAnalyzer = app.state.analyzer
+        validator: TicketValidator = app.state.validator
+        retriever: RAGRetriever = app.state.retriever
+        confidence_agent: ConfidenceEvaluator = app.state.confidence
+        responder: ResponseGenerator = app.state.responder
+        team_name: str = app.state.team_name
+
+        answers: List[Dict[str, str]] = []
+
+        for q in payload.Questions:
+            try:
+                # Build synthetic ticket from question
+                a_ticket = AnalyzerTicket(
+                    id=q.id,
+                    subject=f"Question {q.id}",
+                    content=q.query,
+                    created_at=date.today(),
+                    userPlan="Free",
+                )
+
+                # 1) Analyze
+                analysis = await analyzer.analyze_query(a_ticket)
+
+                # 2) Validate
+                validation = await validator.validate(a_ticket, analysis)
+                if not validation.get("is_valid"):
+                    # Check if out-of-scope
+                    if validation.get("validation_status") == "out_of_scope":
+                        msg = "Thank you for contacting us. Your question appears to be outside the scope of our support services. If you have questions about our product or service, please feel free to rephrase your question."
+                        answers.append({"id": q.id, "answer": msg})
+                        continue
+                    msg = validation.get("message_to_client") or "Please provide more details."
+                    answers.append({"id": q.id, "answer": _dedupe_lines(msg)})
+                    continue
+
+                # 3) RAG retrieval
+                rag_results = await retriever.retrieve(query=q.query, n_results=5, min_confidence=0.0)
+
+                # 4) Confidence evaluation
+                confidence = await confidence_agent.evaluate_confidence(
+                    ticket_analysis=analysis,
+                    rag_results=rag_results,
+                    original_ticket=a_ticket.model_dump(),
+                )
+
+                # 5) Decide response type and generate response
+                if confidence.get("suggested_action") == "out_of_scope":
+                    rtype = "out_of_scope"
+                elif confidence.get("should_escalate"):
+                    rtype = "escalation_notice"
+                elif confidence.get("suggested_action") == "request_clarification":
+                    rtype = "clarification_request"
+                else:
+                    rtype = "solution"
+
+                response = await responder.generate_response(
+                    ticket_analysis=analysis,
+                    rag_results=rag_results,
+                    confidence_evaluation=confidence,
+                    original_ticket=a_ticket.model_dump(),
+                    response_type=rtype,
+                )
+
+                answers.append({"id": q.id, "answer": response.get("response_text", "")})
+                
+            except Exception as e:
+                # Log error but continue with next question
+                import logging
+                logging.error(f"Failed to process question {q.id}: {str(e)}")
+                answers.append({
+                    "id": q.id, 
+                    "answer": "We encountered an error processing your question. Please try rephrasing or contact support directly."
+                })
+                continue
+
+        return JSONResponse(status_code=200, content={"Team": team_name, "Answers": answers})
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Bulk Q&A failed: {e}")
 
 
 # --- Knowledge Base Management ---
